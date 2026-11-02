@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Segredos e bases locais da demo
+.env
+data/
+*.db
+*.db-*
+
+# Sistema
+.DS_Store
