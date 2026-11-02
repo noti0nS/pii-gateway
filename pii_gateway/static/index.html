@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>pii-gateway — demonstração</title>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --ink: #1e1a16;
+      --muted: #6d645b;
+      --card: #fffdf9;
+      --line: #e3dcd0;
+      --accent: #8d3b1e;
+      --accent-ink: #fffaf6;
+      --l1: #5b3d86;
+      --l2: #1d4f86;
+      --l3: #1d6a45;
+      --ok: #1d6a45;
+      --bad: #9f1239;
+      --analysis: #e7f1f8;
+      --vault: #f8ece7;
+      --shadow: 0 1px 0 rgba(30, 26, 22, 0.04);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.5 "Segoe UI", system-ui, sans-serif;
+    }
+    header, main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 28px 0 8px; }
+    .kicker {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 6px;
+    }
+    h1 { font-family: Georgia, "Iowan Old Style", serif; font-size: 34px; line-height: 1.1; margin: 0; }
+    .lede { max-width: 68ch; color: var(--muted); margin: 8px 0 0; }
+    .layout { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 16px; margin-top: 18px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    label { display: block; font-size: 12px; font-weight: 650; letter-spacing: 0.02em; margin-bottom: 6px; }
+    textarea, input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font: 13px/1.45 ui-monospace, monospace;
+      padding: 10px;
+      resize: vertical;
+    }
+    textarea:focus, input:focus { outline: 2px solid #e7c3b4; border-color: var(--accent); }
+    .stack { display: grid; gap: 12px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font: 600 14px/1 system-ui, sans-serif;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    #ask { background: var(--accent); color: var(--accent-ink); }
+    #reset { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    #status { color: var(--muted); font-size: 13px; }
+    #status.bad { color: var(--bad); }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; font-size: 12px; }
+    .pill { border-radius: 999px; padding: 3px 8px; color: white; font-family: ui-monospace, monospace; }
+    .l1 { background: var(--l1); } .l2 { background: var(--l2); } .l3 { background: var(--l3); }
+    .proofs { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 14px; }
+    .badge { border-radius: 999px; padding: 6px 10px; font-size: 12px; background: #ece7de; color: var(--muted); }
+    .badge.ok { background: #e5f4ec; color: var(--ok); }
+    .badge.bad { background: #fde8ee; color: var(--bad); }
+    .grid-4, .grid-2 { display: grid; gap: 12px; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+    .grid-2 { grid-template-columns: 1fr 1fr; margin: 12px 0 28px; }
+    .panel h2, .store h2 { font-size: 13px; margin: 0 0 8px; letter-spacing: 0.02em; }
+    .box {
+      min-height: 120px;
+      max-height: 240px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #faf8f4;
+      border-radius: 10px;
+      padding: 10px;
+      font: 12.5px/1.5 ui-monospace, monospace;
+    }
+    mark.hit { border-radius: 4px; padding: 0 2px; color: inherit; }
+    mark.l1 { background: #efe6f8; }
+    mark.l2 { background: #e3eef9; }
+    mark.l3 { background: #e4f5ec; }
+    .token { background: #f3e2c8; border-radius: 4px; padding: 0 3px; }
+    .store { border-radius: 14px; padding: 12px; border: 1px solid var(--line); }
+    .store.analysis { background: var(--analysis); }
+    .store.vault { background: var(--vault); }
+    .table-wrap { overflow: auto; max-height: 280px; background: rgba(255,255,255,.72); border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font: 12px/1.4 ui-monospace, monospace; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(30,26,22,.08); vertical-align: top; }
+    th { font-weight: 650; color: var(--muted); position: sticky; top: 0; background: #fff; }
+    h3 { font-size: 13px; margin: 14px 0 6px; }
+    footer { color: var(--muted); font-size: 12px; padding: 0 0 32px; }
+    @media (max-width: 860px) {
+      .layout, .grid-4, .grid-2 { grid-template-columns: 1fr; }
+      h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="kicker">Demonstração · perímetro local</p>
+    <h1>pii-gateway</h1>
+    <p class="lede">O texto com dados pessoais entra aqui. O modelo de linguagem só recebe substitutos (<span class="token">CPF_</span>, <span class="token">PERSON_</span>). A resposta volta reidratada, e o banco analítico não guarda o texto claro.</p>
+  </header>
+  <main>
+    <section class="layout">
+      <div class="card stack">
+        <div>
+          <label for="text">Texto do caso (fictício)</label>
+          <textarea id="text" rows="9"></textarea>
+        </div>
+        <div>
+          <label for="question">Pergunta</label>
+          <input id="question" type="text" />
+        </div>
+      </div>
+      <div class="card stack">
+        <div>
+          <label for="terms">Dicionário do caso (L3) — um termo por linha, valor | TIPO</label>
+          <textarea id="terms" rows="6"></textarea>
+        </div>
+        <div>
+          <label for="allow">Allow-list — permanece em claro</label>
+          <textarea id="allow" rows="3"></textarea>
+        </div>
+      </div>
+    </section>
+    <div class="actions">
+      <button id="ask" type="button">Sanitizar e perguntar</button>
+      <button id="reset" type="button">Limpar stores</button>
+      <span id="status">Carregando o exemplo…</span>
+    </div>
+    <div class="legend">
+      <span class="pill l1">L1 regex</span>
+      <span class="pill l2">L2 GLiNER</span>
+      <span class="pill l3">L3 dicionário</span>
+      <span>O tribunal e o Ministério Público estão na allow-list de propósito.</span>
+    </div>
+    <div class="proofs" id="proofs"></div>
+    <section class="grid-4" id="results">
+      <article class="card panel"><h2>Texto original</h2><div class="box" id="original"></div></article>
+      <article class="card panel"><h2>Enviado ao LLM</h2><div class="box" id="sent"></div></article>
+      <article class="card panel"><h2>Resposta bruta</h2><div class="box" id="raw"></div></article>
+      <article class="card panel"><h2>Resposta reidratada</h2><div class="box" id="rehydrated"></div></article>
+    </section>
+    <h3>Detecções <span id="ner-note"></span></h3>
+    <div class="table-wrap" id="detections"></div>
+    <section class="grid-2">
+      <article class="store analysis">
+        <h2>analysis.db — sem texto claro</h2>
+        <div class="table-wrap" id="analysis-table"></div>
+        <h3>o que o analítico guarda</h3>
+        <p id="analysis-note">surrogate, tipo e hash. Nenhum valor original.</p>
+      </article>
+      <article class="store vault">
+        <h2>vault.db — ciphertext e log de decrypt</h2>
+        <div class="table-wrap" id="vault-table"></div>
+        <h3>vault_access_log</h3>
+        <div class="table-wrap" id="log-table"></div>
+      </article>
+    </section>
+    <footer>
+      Dados inventados. CPF 123.456.789-09 e CNPJ 12.345.678/0001-95 são placeholders com dígito válido; o e-mail usa example.com. O KMS é simulado (AES-256-GCM com VAULT_KEY no processo). Não use documento real de processo.
+    </footer>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const TOKEN = /\b(?:ADDRESS|PERSON|PHONE|EMAIL|CNPJ|ORG|CPF)_[0-9a-f]{8,64}\b/g;
+
+    function readLines(id) {
+      return $(id).value.split("\n").map((line) => line.trim()).filter(Boolean);
+    }
+    function readTerms() {
+      return readLines("terms").map((line) => {
+        const parts = line.split("|").map((part) => part.trim());
+        return parts[1] ? { value: parts[0], type: parts[1] } : parts[0];
+      });
+    }
+    function setStatus(text, bad) {
+      const el = $("status");
+      el.textContent = text;
+      el.className = bad ? "bad" : "";
+    }
+    function badge(text, kind) {
+      const el = document.createElement("span");
+      el.className = "badge" + (kind ? " " + kind : "");
+      el.textContent = text;
+      return el;
+    }
+    function fillText(el, text) {
+      el.replaceChildren();
+      el.append(text || "");
+    }
+    function fillOriginal(text, detections) {
+      const el = $("original");
+      el.replaceChildren();
+      const marks = [...(detections || [])].sort((a, b) => a.start - b.start);
+      let cursor = 0;
+      for (const det of marks) {
+        if (det.start < cursor || det.end > text.length) continue;
+        el.append(text.slice(cursor, det.start));
+        const mark = document.createElement("mark");
+        mark.className = "hit " + String(det.layer || "").toLowerCase();
+        mark.textContent = text.slice(det.start, det.end);
+        mark.title = det.type + " · " + det.layer + " · " + det.surrogate;
+        el.append(mark);
+        cursor = det.end;
+      }
+      el.append(text.slice(cursor));
+    }
+    function fillTokens(el, text) {
+      el.replaceChildren();
+      const source = text || "";
+      let cursor = 0;
+      for (const match of source.matchAll(TOKEN)) {
+        el.append(source.slice(cursor, match.index));
+        const span = document.createElement("span");
+        span.className = "token";
+        span.textContent = match[0];
+        el.append(span);
+        cursor = match.index + match[0].length;
+      }
+      el.append(source.slice(cursor));
+    }
+    function makeTable(headers, rows) {
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const head = document.createElement("tr");
+      for (const header of headers) {
+        const th = document.createElement("th");
+        th.textContent = header;
+        head.append(th);
+      }
+      thead.append(head);
+      table.append(thead);
+      const body = document.createElement("tbody");
+      if (!rows.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = headers.length;
+        td.textContent = "vazia";
+        tr.append(td);
+        body.append(tr);
+      }
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        for (const cell of row) {
+          const td = document.createElement("td");
+          td.textContent = cell.text;
+          if (cell.title) td.title = cell.title;
+          tr.append(td);
+        }
+        body.append(tr);
+      }
+      table.append(body);
+      return table;
+    }
+    function cell(text, title) {
+      return { text: String(text ?? ""), title: title || "" };
+    }
+    function secretsFrom(original, detections) {
+      const secrets = [];
+      for (const det of detections || []) {
+        const surface = original.slice(det.start, det.end);
+        if (surface) secrets.push(surface);
+        if (["CPF", "CNPJ", "PHONE"].includes(det.type)) {
+          const digits = surface.replace(/\D/g, "");
+          if (digits) secrets.push(digits);
+        }
+      }
+      return [...new Set(secrets)];
+    }
+    function hits(haystack, secrets) {
+      return secrets.filter((secret) => secret && haystack.includes(secret));
+    }
+    function renderProofs(data, stores) {
+      const secrets = secretsFrom(data.original, data.detections);
+      const analysisBlob = JSON.stringify(stores.analysis || {});
+      const sentHits = hits(data.sent_to_llm || "", secrets);
+      const analysisHits = hits(analysisBlob, secrets);
+      const box = $("proofs");
+      box.replaceChildren(
+        badge(sentHits.length ? "LLM recebeu texto claro" : "LLM: só surrogates", sentHits.length ? "bad" : "ok"),
+        badge(analysisHits.length ? "analysis.db contém texto claro" : "analysis.db: sem texto claro", analysisHits.length ? "bad" : "ok"),
+        badge(data.llm_mode === "mock" ? "LLM local de demonstração" : "LLM externo", "")
+      );
+    }
+    function renderStores(stores) {
+      const entities = (stores.analysis && stores.analysis.entity) || [];
+      const vault = (stores.vault && stores.vault.vault) || [];
+      const logs = (stores.vault && stores.vault.vault_access_log) || [];
+      $("analysis-table").replaceChildren(makeTable(
+        ["surrogate", "tipo", "value_hash", "criado em"],
+        entities.map((row) => [
+          cell(row.surrogate),
+          cell(row.type),
+          cell(String(row.value_hash || "").slice(0, 16) + "…", row.value_hash),
+          cell(String(row.created_at || "").replace("T", " ").slice(0, 19)),
+        ])
+      ));
+      $("vault-table").replaceChildren(makeTable(
+        ["surrogate", "ciphertext (base64)", "nonce"],
+        vault.map((row) => [
+          cell(row.surrogate),
+          cell(String(row.ciphertext_b64 || "").slice(0, 28) + "…", row.ciphertext_b64),
+          cell(row.nonce_hex),
+        ])
+      ));
+      $("log-table").replaceChildren(makeTable(
+        ["surrogate", "finalidade", "quando"],
+        logs.map((row) => [
+          cell(row.surrogate),
+          cell(row.purpose),
+          cell(String(row.at || "").replace("T", " ").slice(0, 19)),
+        ])
+      ));
+      $("analysis-note").textContent = entities.length + " linha(s) em entity. O hash não é o valor.";
+    }
+    function renderDetections(detections) {
+      $("detections").replaceChildren(makeTable(
+        ["tipo", "camada", "início", "fim", "surrogate"],
+        (detections || []).map((det) => [
+          cell(det.type), cell(det.layer), cell(det.start), cell(det.end), cell(det.surrogate),
+        ])
+      ));
+    }
+    async function loadStores(data) {
+      const response = await fetch("/stores");
+      const stores = await response.json();
+      renderStores(stores);
+      if (data) renderProofs(data, stores);
+      return stores;
+    }
+    async function loadSample() {
+      const response = await fetch("/sample");
+      if (!response.ok) throw new Error("não foi possível carregar o exemplo");
+      const sample = await response.json();
+      $("text").value = sample.text;
+      $("question").value = sample.question;
+      $("terms").value = sample.case_terms.map((term) => term.value + " | " + term.type).join("\n");
+      $("allow").value = sample.allow_terms.join("\n");
+      setStatus("Exemplo fictício carregado. Nada foi enviado ainda.");
+    }
+    async function ask() {
+      $("ask").disabled = true;
+      setStatus("Sanitizando e consultando o modelo…");
+      try {
+        const response = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: $("text").value,
+            question: $("question").value,
+            case_terms: readTerms(),
+            allow_terms: readLines("allow"),
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          const detail = data.detail;
+          setStatus(typeof detail === "string" ? detail : "A operação foi recusada.", true);
+          return;
+        }
+        fillOriginal(data.original, data.detections);
+        fillTokens($("sent"), data.sent_to_llm);
+        fillTokens($("raw"), data.llm_answer);
+        fillText($("rehydrated"), data.rehydrated);
+        renderDetections(data.detections);
+        const nerBits = [];
+        if (data.ner && data.ner.warning) nerBits.push(data.ner.warning);
+        else if (data.ner && data.ner.enabled === false) {
+          nerBits.push("L2 desligada neste processo; o exemplo usa a L1 e o dicionário.");
+        }
+        $("ner-note").textContent = nerBits.length ? "· " + nerBits.join(" ") : "";
+        await loadStores(data);
+        setStatus("Pronto. Compare os quatro painéis e as duas tabelas.");
+        $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (error) {
+        setStatus("Falha de rede ao falar com o gateway.", true);
+      } finally {
+        $("ask").disabled = false;
+      }
+    }
+    async function resetStores() {
+      await fetch("/reset", { method: "POST" });
+      await loadStores();
+      setStatus("Stores limpos.");
+    }
+    $("ask").addEventListener("click", ask);
+    $("reset").addEventListener("click", resetStores);
+    loadSample().then(() => {
+      if (new URLSearchParams(location.search).has("autorun")) ask();
+    }).catch(() => setStatus("Não foi possível carregar o exemplo.", true));
+  </script>
+</body>
+</html>

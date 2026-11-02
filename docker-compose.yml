@@ -1,0 +1,20 @@
+services:
+  pii-gateway:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      TENANT_KEY: ${TENANT_KEY:-demo-tenant-key-troque}
+      VAULT_KEY: ${VAULT_KEY:-demo-vault-key-troque}
+      ANALYSIS_DB_URL: sqlite:////app/data/analysis.db
+      VAULT_DB_URL: sqlite:////app/data/vault.db
+      ENABLE_NER: ${ENABLE_NER:-false}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LLM_MOCK: ${LLM_MOCK:-true}
+    volumes:
+      - gateway-data:/app/data
+
+volumes:
+  gateway-data:
