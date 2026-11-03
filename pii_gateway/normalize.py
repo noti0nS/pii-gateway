@@ -31,6 +31,9 @@ def normalize_for_hash(entity_type: str, value: str) -> str:
     `12345678909` geram o mesmo surrogate. O tipo não entra no hash.
     """
     if entity_type in {"CPF", "CNPJ"}:
+        # Não confunde erros de OCR diferentes ao simplesmente descartar letras.
+        if any(char.isalpha() for char in value):
+            return "ocr:" + fold(value)
         return _NON_DIGIT.sub("", value)
     if entity_type == "PHONE":
         digits = _NON_DIGIT.sub("", value)

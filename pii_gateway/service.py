@@ -65,11 +65,11 @@ class Gateway:
     def reset(self) -> None:
         self.stores.reset()
 
-    def sanitize(self, text: str, terms: list[Term], allow: list[str]) -> Sanitized:
-        return self._prepare([text], terms, allow)[0]
+    def sanitize(self, text: str, terms: list[Term], allow: list[str], *, conservative_pii: bool = False) -> Sanitized:
+        return self._prepare([text], terms, allow, conservative_pii=conservative_pii)[0]
 
-    def ask(self, text: str, question: str, terms: list[Term], allow: list[str]) -> AskResult:
-        sanitized_text, sanitized_question = self._prepare([text, question], terms, allow)
+    def ask(self, text: str, question: str, terms: list[Term], allow: list[str], *, conservative_pii: bool = False) -> AskResult:
+        sanitized_text, sanitized_question = self._prepare([text, question], terms, allow, conservative_pii=conservative_pii)
         sent = f"Texto:\n{sanitized_text.text}\n\nPergunta:\n{sanitized_question.text}"
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -101,7 +101,7 @@ class Gateway:
 
         return SURROGATE_RE.sub(replace, text)
 
-    def _prepare(self, texts: list[str], terms: list[Term], allow: list[str]) -> list[Sanitized]:
+    def _prepare(self, texts: list[str], terms: list[Term], allow: list[str], *, conservative_pii: bool = False) -> list[Sanitized]:
         self.ner_warning = None
         l2_groups = [self._l2(text) for text in texts]
         dictionary = build_dictionary(
@@ -110,7 +110,7 @@ class Gateway:
             allow,
         )
         return [
-            self._substitute(text, l2, dictionary, allow)
+            self._substitute(text, l2, dictionary, allow, conservative_pii=conservative_pii)
             for text, l2 in zip(texts, l2_groups, strict=True)
         ]
 
@@ -132,11 +132,13 @@ class Gateway:
         l2: list[Detection],
         dictionary: list[Term],
         allow: list[str],
+        *,
+        conservative_pii: bool = False,
     ) -> Sanitized:
         spans = allow_spans(text, allow)
         candidates = [
             item
-            for item in (*detect_l1(text), *l2, *detect_dictionary(text, dictionary))
+            for item in (*detect_l1(text, conservative=conservative_pii), *l2, *detect_dictionary(text, dictionary))
             if not is_allowed(item, allow, spans)
         ]
         parts: list[str] = []
@@ -160,6 +162,8 @@ class Gateway:
                     "surrogate": token,
                 }
             )
+            if any(candidate.review_required and candidate.start < item.end and item.start < candidate.end for candidate in candidates):
+                detections[-1]["review_required"] = True
             cursor = item.end
         parts.append(text[cursor:])
         return Sanitized("".join(parts), detections)

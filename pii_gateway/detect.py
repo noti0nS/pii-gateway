@@ -20,6 +20,10 @@ LAYER_PRIORITY: dict[str, int] = {"L1": 3, "L3": 2, "L2": 1}
 
 _CPF_RE = re.compile(r"(?<!\d)\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?!\d)")
 _CNPJ_RE = re.compile(r"(?<!\d)\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}(?!\d)")
+# Na importação, prefere falso positivo a deixar um identificador de OCR em claro.
+_OCR_DIGIT = r"[0-9OoIlLSs]"
+_OCR_CPF_RE = re.compile(rf"(?<!\w){_OCR_DIGIT}{{3}}[.\s]*{_OCR_DIGIT}{{3}}[.\s]*{_OCR_DIGIT}{{3}}[-\s]*{_OCR_DIGIT}{{2}}(?!\w)")
+_OCR_CNPJ_RE = re.compile(rf"(?<!\w){_OCR_DIGIT}{{2}}[.\s]*{_OCR_DIGIT}{{3}}[.\s]*{_OCR_DIGIT}{{3}}[/\s]*{_OCR_DIGIT}{{4}}[-\s]*{_OCR_DIGIT}{{2}}(?!\w)")
 _EMAIL_RE = re.compile(
     r"(?<![\w.+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?![\w.-])"
 )
@@ -67,11 +71,12 @@ class Detection:
     text: str
     type: str
     layer: str
+    review_required: bool = False
 
     def shrink(self, start: int, end: int) -> Detection:
         rel_start = start - self.start
         rel_end = end - self.start
-        return Detection(start, end, self.text[rel_start:rel_end], self.type, self.layer)
+        return Detection(start, end, self.text[rel_start:rel_end], self.type, self.layer, self.review_required)
 
 
 @dataclass(frozen=True)
@@ -148,16 +153,16 @@ def infer_type(value: str) -> str:
     return "PERSON"
 
 
-def detect_l1(text: str) -> list[Detection]:
+def detect_l1(text: str, *, conservative: bool = False) -> list[Detection]:
     found: list[Detection] = []
     occupied: list[tuple[int, int]] = []
 
-    def take(match: re.Match[str], entity_type: str) -> None:
+    def take(match: re.Match[str], entity_type: str, review: bool = False) -> None:
         span = (match.start(), match.end())
         if any(span[0] < end and start < span[1] for start, end in occupied):
             return
         found.append(
-            Detection(span[0], span[1], match.group(0), entity_type, "L1")
+            Detection(span[0], span[1], match.group(0), entity_type, "L1", review)
         )
         occupied.append(span)
 
@@ -172,6 +177,11 @@ def detect_l1(text: str) -> list[Detection]:
     for match in _PHONE_RE.finditer(text):
         if canonical_phone(match.group(0)):
             take(match, "PHONE")
+    if conservative:
+        for pattern, entity_type in ((_OCR_CNPJ_RE, "CNPJ"), (_OCR_CPF_RE, "CPF")):
+            for match in pattern.finditer(text):
+                if any(char.isdigit() for char in match.group(0)):
+                    take(match, entity_type, review=True)
     found.sort(key=lambda item: item.start)
     return found
 

@@ -8,6 +8,7 @@ Os testes mockam `load_model` e não baixam peso nenhum.
 from __future__ import annotations
 
 import threading
+from collections.abc import Iterator
 
 from pii_gateway.detect import Detection
 
@@ -38,6 +39,7 @@ LABEL_TO_TYPE = {
 
 _lock = threading.Lock()
 _models: dict[str, object] = {}
+_inference_lock = threading.Lock()
 
 
 def load_model(model_id: str = MODEL_ID) -> object:
@@ -61,13 +63,39 @@ def detect_l2(text: str, *, model_id: str = MODEL_ID) -> list[Detection]:
     if not text.strip():
         return []
     model = load_model(model_id)
-    raw_entities = model.predict_entities(text, list(REQUEST_LABELS), threshold=0.5)
     found: list[Detection] = []
-    for entity in raw_entities:
-        mapped = _map_entity(text, entity)
-        if mapped is not None:
-            found.append(mapped)
+    seen: set[tuple[int, int, str]] = set()
+    for offset, chunk in _text_windows(text, model):
+        with _inference_lock:
+            raw_entities = model.predict_entities(chunk, list(REQUEST_LABELS), threshold=0.5)
+        for entity in raw_entities:
+            mapped = _map_entity(chunk, entity)
+            if mapped is not None:
+                key = (offset + mapped.start, offset + mapped.end, mapped.type)
+                if key not in seen:
+                    seen.add(key)
+                    found.append(Detection(key[0], key[1], mapped.text, mapped.type, "L2"))
+    found.sort(key=lambda item: item.start)
     return found
+
+
+def _text_windows(text: str, model: object) -> Iterator[tuple[int, str]]:
+    """Percorre o texto inteiro com sobreposição e reserva espaço para os rótulos."""
+    tokenizer = getattr(getattr(model, "data_processor", None), "transformer_tokenizer", None)
+    max_words = getattr(getattr(model, "config", None), "max_len", 384)
+    budget = min(256, max(8, max_words // 2))
+    start = 0
+    while start < len(text):
+        end = min(len(text), start + 1000)
+        if tokenizer is not None:
+            while end - start > 1 and len(tokenizer.encode(text[start:end], add_special_tokens=False)) > budget:
+                end = start + max(1, (end - start) // 2)
+        if text[start:end].strip():
+            yield start, text[start:end]
+        if end == len(text):
+            break
+        overlap = min(200, (end - start) // 3)
+        start = end - overlap
 
 
 def _map_entity(text: str, entity: object) -> Detection | None:

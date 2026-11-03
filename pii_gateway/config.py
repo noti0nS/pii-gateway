@@ -41,6 +41,8 @@ class Settings:
     llm_api_key: str = ""
     llm_model: str = "gpt-4o-mini"
     llm_mock: bool = False
+    ocr_backend: str = "tesseract"
+    ocr_device: str = "cpu"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -66,4 +68,6 @@ class Settings:
             llm_api_key=os.environ.get("LLM_API_KEY", ""),
             llm_model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
             llm_mock=_flag("LLM_MOCK", False),
+            ocr_backend=os.environ.get("OCR_BACKEND", "tesseract"),
+            ocr_device=os.environ.get("OCR_DEVICE", "cpu"),
         )

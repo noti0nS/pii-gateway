@@ -62,6 +62,7 @@
     }
     textarea:focus, input:focus { outline: 2px solid #e7c3b4; border-color: var(--accent); }
     .stack { display: grid; gap: 12px; }
+    .hint { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
     button {
       border: 0;
@@ -116,77 +117,118 @@
       h1 { font-size: 28px; }
     }
   </style>
+  <link rel="stylesheet" href="/assets/ui.css" />
 </head>
 <body>
-  <header>
-    <p class="kicker">Demonstração · perímetro local</p>
-    <h1>pii-gateway</h1>
-    <p class="lede">O texto com dados pessoais entra aqui. O modelo de linguagem só recebe substitutos (<span class="token">CPF_</span>, <span class="token">PERSON_</span>). A resposta volta reidratada, e o banco analítico não guarda o texto claro.</p>
-  </header>
-  <main>
+  <aside class="sidebar" aria-label="Navegação">
+    <a class="brand" href="#source"><span class="brand-icon">p<span>·</span></span><span>pii<span class="brand-light">gateway</span><small>PRIVACY WORKSPACE</small></span></a>
+    <span class="nav-label">DEMONSTRAÇÃO</span>
+    <nav><a class="nav-active" href="#source"><span>01</span> Documento</a><a href="#results"><span>02</span> Resultados</a><a href="#inspect"><span>03</span> Inspeção técnica</a></nav>
+    <div class="sidebar-note"><span class="live-dot"></span> Extração no perímetro local<p>O documento fica na sua máquina. Apenas após sua ação o texto pseudonimizado segue ao LLM configurado.</p></div>
+    <div class="sidebar-footer">PROVA DE CONCEITO <span>v0.1</span></div>
+  </aside>
+  <header class="topbar"><div><span class="breadcrumb">Workspace</span><span class="breadcrumb-slash">/</span>Análise de documento</div><button id="configure" class="secondary" type="button"><span aria-hidden="true">⚙</span> Configurar OCR</button></header>
+  <main class="app-main">
+    <section class="hero" id="source"><div><p class="kicker">CONTEXTO PRESERVADO. IDENTIDADES PROTEGIDAS.</p><h1>Analise o caso.<br><span>Não exponha as pessoas.</span></h1><p class="lede">Do documento à resposta, acompanhe o que é extraído, o que sai da máquina e o que volta para você.</p></div><div class="hero-note"><span class="live-dot"></span> Um fluxo. Três camadas.<div class="hero-flow">Documento <span>→</span> Substitutos <span>→</span> Resposta</div><small>Detecção assistida, não garantia de anonimização.</small></div></section>
     <section class="layout">
-      <div class="card stack">
-        <div>
-          <label for="text">Texto do caso (fictício)</label>
-          <textarea id="text" rows="9"></textarea>
-        </div>
-        <div>
-          <label for="question">Pergunta</label>
-          <input id="question" type="text" />
-        </div>
+      <div class="card source-card">
+        <div class="section-heading"><div><span class="eyebrow">01 / PREPARAÇÃO</span><h2>Seu documento, primeiro.</h2></div><button id="load-example" class="text-button" type="button">Usar exemplo fictício ↗</button></div>
+        <label class="upload-zone" id="dropzone" for="pdf"><span class="upload-icon" aria-hidden="true">↥</span><strong>Solte seu PDF aqui <span>ou escolha um arquivo</span></strong><small>Texto digital, páginas escaneadas ou documentos mistos.</small><input id="pdf" type="file" accept="application/pdf,.pdf" aria-describedby="pdf-help" disabled /></label>
+        <div class="import-toolbar"><span class="engine-chip" id="engine-label">OCR · Tesseract</span><label class="check-label"><input id="force-ocr" type="checkbox" /> Forçar OCR em todas as páginas</label></div>
+        <p class="hint" id="pdf-help">Extração local, sem salvar o PDF. Sem limite artificial de páginas ou tamanho; o consumo depende do seu PC.</p>
+        <div class="import-progress"><progress id="pdf-progress" aria-label="Progresso da extração" hidden></progress><button id="cancel-pdf" class="text-button danger" type="button" hidden>Cancelar importação</button></div>
+        <p class="hint import-message" id="pdf-status" role="status" aria-live="polite"></p>
+        <div class="field-heading"><label for="text">Texto do caso</label><span id="text-count">Revise antes de continuar</span></div>
+        <textarea id="text" rows="11" placeholder="Cole o texto do caso ou importe um PDF…"></textarea>
+        <div class="input-note"><span aria-hidden="true">↳</span> O texto extraído pode ser editado aqui. Confira páginas vazias e possíveis erros de OCR.</div>
       </div>
-      <div class="card stack">
-        <div>
-          <label for="terms">Dicionário do caso (L3) — um termo por linha, valor | TIPO</label>
-          <textarea id="terms" rows="6"></textarea>
-        </div>
-        <div>
-          <label for="allow">Allow-list — permanece em claro</label>
-          <textarea id="allow" rows="3"></textarea>
-        </div>
-      </div>
+      <aside class="context-column">
+        <div class="card context-card"><span class="eyebrow">02 / CONTEXTO</span><h2>O que deve ser protegido?</h2><p class="card-description">Complete as regras automáticas com os nomes e termos deste caso.</p><label for="terms">Dicionário do caso <span class="field-tag">L3</span></label><textarea id="terms" rows="7" placeholder="Maria Silva | PERSON&#10;Empresa Exemplo | ORG"></textarea><p class="hint">Um termo por linha: <code>valor | TIPO</code>.</p><details class="allow-details"><summary>Exceções · manter em claro</summary><p class="hint">Use com cuidado: estes termos poderão sair da máquina.</p><label class="sr-only" for="allow">Allow-list — permanece em claro</label><textarea id="allow" rows="3"></textarea></details></div>
+        <div class="privacy-card"><span class="privacy-symbol" aria-hidden="true">◇</span><div><strong>Privacidade é um processo.</strong><p>OCR e detecção podem errar. Revise o texto e o dicionário antes de enviar uma pergunta. Prefira dados fictícios nesta demo.</p></div></div>
+      </aside>
     </section>
-    <div class="actions">
-      <button id="ask" type="button">Sanitizar e perguntar</button>
-      <button id="reset" type="button">Limpar stores</button>
-      <span id="status">Carregando o exemplo…</span>
-    </div>
-    <div class="legend">
-      <span class="pill l1">L1 regex</span>
-      <span class="pill l2">L2 GLiNER</span>
-      <span class="pill l3">L3 dicionário</span>
-      <span>O tribunal e o Ministério Público estão na allow-list de propósito.</span>
-    </div>
-    <div class="proofs" id="proofs"></div>
-    <section class="grid-4" id="results">
-      <article class="card panel"><h2>Texto original</h2><div class="box" id="original"></div></article>
-      <article class="card panel"><h2>Enviado ao LLM</h2><div class="box" id="sent"></div></article>
-      <article class="card panel"><h2>Resposta bruta</h2><div class="box" id="raw"></div></article>
-      <article class="card panel"><h2>Resposta reidratada</h2><div class="box" id="rehydrated"></div></article>
-    </section>
-    <h3>Detecções <span id="ner-note"></span></h3>
-    <div class="table-wrap" id="detections"></div>
-    <section class="grid-2">
-      <article class="store analysis">
-        <h2>analysis.db — sem texto claro</h2>
-        <div class="table-wrap" id="analysis-table"></div>
-        <h3>o que o analítico guarda</h3>
-        <p id="analysis-note">surrogate, tipo e hash. Nenhum valor original.</p>
-      </article>
-      <article class="store vault">
-        <h2>vault.db — ciphertext e log de decrypt</h2>
-        <div class="table-wrap" id="vault-table"></div>
-        <h3>vault_access_log</h3>
-        <div class="table-wrap" id="log-table"></div>
-      </article>
-    </section>
-    <footer>
-      Dados inventados. CPF 123.456.789-09 e CNPJ 12.345.678/0001-95 são placeholders com dígito válido; o e-mail usa example.com. O KMS é simulado (AES-256-GCM com VAULT_KEY no processo). Não use documento real de processo.
-    </footer>
+    <section class="card question-card"><div class="question-title"><span class="eyebrow">03 / CONSULTA</span><label for="question">O que você quer entender?</label></div><input id="question" type="text" placeholder="Faça uma pergunta sobre o documento…" /><button id="ask" type="button">Sanitizar e perguntar <span aria-hidden="true">→</span></button><div id="status" role="status" aria-live="polite">Carregando o exemplo…</div></section>
+    <section class="results-section" id="results"><div class="section-heading"><div><span class="eyebrow">TRANSPARÊNCIA, PONTA A PONTA</span><h2>O percurso da informação.</h2></div><span class="section-caption" id="llm-label">Aguardando consulta</span></div><div class="proofs" id="proofs"></div><div class="grid-4">
+      <article class="card panel"><h2><span class="panel-number">01</span> Texto original <span class="panel-tag">LOCAL</span></h2><div class="box" id="original" data-empty="O texto original aparecerá aqui, com as detecções destacadas."></div></article>
+      <article class="card panel"><h2><span class="panel-number">02</span> Enviado ao LLM <span class="panel-tag teal">PSEUDONIMIZADO</span></h2><div class="box" id="sent" data-empty="Confira exatamente o conteúdo enviado ao modelo."></div></article>
+      <article class="card panel"><h2><span class="panel-number">03</span> Resposta bruta</h2><div class="box" id="raw" data-empty="A resposta do modelo, ainda com os substitutos."></div></article>
+      <article class="card panel restored-panel"><h2><span class="panel-number">04</span> Resposta reidratada <span class="panel-tag">LOCAL</span></h2><div class="box" id="rehydrated" data-empty="Os valores originais são restaurados aqui, no seu perímetro."></div></article>
+    </div></section>
+    <details class="inspection" id="inspect"><summary><span><span class="eyebrow">POR BAIXO DO CAPÔ</span><strong>Detecções, cofre e auditoria</strong></span><span class="inspection-hint">Abrir inspeção ↗</span></summary><div class="inspection-body"><div class="legend"><span class="pill l1">L1 regras</span><span class="pill l2">L2 GLiNER</span><span class="pill l3">L3 dicionário</span><span id="ner-note"></span></div><h3>Detecções</h3><div class="table-wrap" id="detections"></div><div class="grid-2">
+      <article class="store analysis"><h2>analysis.db <span class="panel-tag">SEM TEXTO CLARO</span></h2><div class="table-wrap" id="analysis-table"></div><p id="analysis-note">Surrogate, tipo e hash. Nenhum valor original.</p></article>
+      <article class="store vault"><h2>vault.db <span class="panel-tag">CIFRADO</span></h2><div class="table-wrap" id="vault-table"></div><h3>Log de acesso · vault_access_log</h3><div class="table-wrap" id="log-table"></div></article>
+    </div><button id="reset" class="secondary danger" type="button">Limpar stores da demonstração</button></div></details>
+    <footer><span class="footer-brand">pii / gateway</span><span>POC · AES-256-GCM · KMS simulado · Apenas dados detectados são substituídos.</span></footer>
   </main>
+  <dialog id="settings-dialog" aria-labelledby="settings-title"><form id="settings-form"><div class="modal-heading"><div><span class="eyebrow">SEU AMBIENTE, SUA ESCOLHA</span><h2 id="settings-title">Configurar OCR local</h2></div><button id="close-settings" class="icon-button" type="button" aria-label="Fechar configurações">×</button></div><p class="card-description">A escolha vale para as próximas importações neste navegador. Não altera o .env nem envia documentos a serviços externos.</p><label for="ocr-backend">Motor de extração</label><select id="ocr-backend"></select><div id="backend-detail" class="backend-detail"></div><label for="ocr-device">Dispositivo de inferência</label><select id="ocr-device"><option value="cpu">CPU · compatibilidade ampla</option><option value="cuda">GPU NVIDIA · requer CUDA</option></select><p class="hint">Encontrar os arquivos não comprova qualidade ou compatibilidade. Modelos opcionais precisam de instalação; não há download automático durante uma importação.</p><details class="setup-details" open><summary>Como preparar este motor</summary><pre id="backend-setup"></pre><p class="hint" id="model-env"></p></details><p id="settings-status" class="hint" role="status"></p><div class="modal-actions"><button id="refresh-backends" class="secondary" type="button">Atualizar disponibilidade</button><button class="primary" type="submit">Salvar escolha →</button></div></form></dialog>
   <script>
     const $ = (id) => document.getElementById(id);
     const TOKEN = /\b(?:ADDRESS|PERSON|PHONE|EMAIL|CNPJ|ORG|CPF)_[0-9a-f]{8,64}\b/g;
+    let importController = null;
+    let pdfSource = false;
+    let ocrCatalog = [];
+    let ocrChoice = { backend: "tesseract", device: "cpu" };
+
+    function updateTextCount() {
+      $("text-count").textContent = $("text").value.length.toLocaleString("pt-BR") + " caracteres · editável";
+    }
+    function updateEngineLabel() {
+      const backend = ocrCatalog.find((item) => item.id === ocrChoice.backend);
+      $("engine-label").textContent = (backend?.name || ocrChoice.backend) + " · " + ocrChoice.device.toUpperCase() + (backend && !backend.ready ? " · preparar" : "");
+    }
+    function renderBackendDetail() {
+      const backend = ocrCatalog.find((item) => item.id === $("ocr-backend").value);
+      if (!backend) return;
+      const description = document.createElement("p");
+      description.textContent = backend.description;
+      const hardware = document.createElement("strong");
+      hardware.textContent = backend.hardware;
+      const status = document.createElement("p");
+      status.className = "backend-state" + (backend.ready ? "" : " pending");
+      status.textContent = (backend.ready ? "● Preparado · " : "○ Instalação pendente · ") + backend.status;
+      $("backend-detail").replaceChildren(hardware, description, status);
+      $("backend-setup").textContent = backend.setup;
+      $("model-env").textContent = backend.model_env ? "Pasta alternativa dos modelos: variável " + backend.model_env + " no ambiente do servidor. Consulte o README." : "Tesseract usa TESSERACT_CMD, TESSERACT_LANG e TESSDATA_PREFIX, se configurados.";
+      for (const option of $("ocr-device").options) option.disabled = !backend.devices.includes(option.value);
+      if (!backend.devices.includes($("ocr-device").value)) $("ocr-device").value = "cpu";
+    }
+    async function loadOcrOptions(initial = false) {
+      const response = await fetch("/ocr/options");
+      if (!response.ok) throw new Error("Não foi possível consultar os motores locais.");
+      const data = await response.json();
+      ocrCatalog = data.backends;
+      if (initial) {
+        ocrChoice = { backend: data.default_backend, device: data.default_device };
+        try {
+          const saved = JSON.parse(localStorage.getItem("pii-gateway.ocr") || "null");
+          if (saved && ocrCatalog.some((item) => item.id === saved.backend && item.devices.includes(saved.device))) ocrChoice = { backend: saved.backend, device: saved.device };
+        } catch (_) { /* Preferências locais indisponíveis: usa o padrão do servidor. */ }
+      }
+      const selection = initial ? ocrChoice.backend : $("ocr-backend").value || ocrChoice.backend;
+      $("ocr-backend").replaceChildren(...ocrCatalog.map((backend) => {
+        const option = document.createElement("option");
+        option.value = backend.id;
+        option.textContent = backend.name + (backend.ready ? " · preparado" : " · instalação pendente");
+        return option;
+      }));
+      $("ocr-backend").value = selection;
+      if (initial) $("ocr-device").value = ocrChoice.device;
+      $("llm-label").textContent = data.llm_mode === "mock" ? "LLM de demonstração · local" : "LLM configurado · modo real";
+      renderBackendDetail();
+      updateEngineLabel();
+    }
+    async function refreshBackends() {
+      $("refresh-backends").disabled = true;
+      $("settings-status").textContent = "Verificando arquivos e dependências locais…";
+      try {
+        await loadOcrOptions();
+        $("settings-status").textContent = "Disponibilidade atualizada. Nenhum modelo foi baixado ou executado.";
+      } catch (error) {
+        $("settings-status").textContent = error.message;
+      } finally {
+        $("refresh-backends").disabled = false;
+      }
+    }
 
     function readLines(id) {
       return $(id).value.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -301,7 +343,7 @@
       const analysisHits = hits(analysisBlob, secrets);
       const box = $("proofs");
       box.replaceChildren(
-        badge(sentHits.length ? "LLM recebeu texto claro" : "LLM: só surrogates", sentHits.length ? "bad" : "ok"),
+        badge(sentHits.length ? "Dado detectado permaneceu no envio" : "Dados detectados substituídos", sentHits.length ? "bad" : "ok"),
         badge(analysisHits.length ? "analysis.db contém texto claro" : "analysis.db: sem texto claro", analysisHits.length ? "bad" : "ok"),
         badge(data.llm_mode === "mock" ? "LLM local de demonstração" : "LLM externo", "")
       );
@@ -339,9 +381,10 @@
     }
     function renderDetections(detections) {
       $("detections").replaceChildren(makeTable(
-        ["tipo", "camada", "início", "fim", "surrogate"],
+        ["tipo", "camada", "início", "fim", "surrogate", "revisão"],
         (detections || []).map((det) => [
           cell(det.type), cell(det.layer), cell(det.start), cell(det.end), cell(det.surrogate),
+          cell(det.review_required ? "Possível erro de OCR — revisar" : ""),
         ])
       ));
     }
@@ -360,10 +403,104 @@
       $("question").value = sample.question;
       $("terms").value = sample.case_terms.map((term) => term.value + " | " + term.type).join("\n");
       $("allow").value = sample.allow_terms.join("\n");
+      pdfSource = false;
+      $("pdf-status").textContent = "";
+      clearResults();
+      updateTextCount();
       setStatus("Exemplo fictício carregado. Nada foi enviado ainda.");
     }
+    function setBusy(busy) {
+      for (const id of ["ask", "reset", "pdf", "force-ocr", "text", "terms", "allow", "question", "configure", "load-example"]) $(id).disabled = busy;
+    }
+    function clearResults() {
+      for (const id of ["original", "sent", "raw", "rehydrated", "detections", "proofs", "ner-note"]) {
+        $(id).replaceChildren();
+      }
+    }
+    async function importPdf(file = $("pdf").files[0]) {
+      if (!file) return;
+      setBusy(true);
+      clearResults();
+      pdfSource = false;
+      $("text").value = "";
+      updateTextCount();
+      importController = new AbortController();
+      $("cancel-pdf").hidden = false;
+      $("pdf-progress").hidden = false;
+      $("pdf-progress").removeAttribute("value");
+      $("pdf-status").textContent = "Extraindo o PDF localmente…";
+      setStatus("Extraindo o documento. Nenhuma consulta ao LLM será feita.");
+      try {
+        const query = new URLSearchParams({ force_ocr: $("force-ocr").checked, backend: ocrChoice.backend, device: ocrChoice.device });
+        const response = await fetch("/extract-pdf/stream?" + query, {
+          method: "POST",
+          headers: { "Content-Type": "application/pdf" },
+          body: file,
+          signal: importController.signal,
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(typeof error.detail === "string" ? error.detail : "Não foi possível importar o PDF.");
+        }
+        let data = null;
+        let pending = "";
+        const decoder = new TextDecoder();
+        const reader = response.body.getReader();
+        function receive(line) {
+          if (!line.trim()) return;
+          const event = JSON.parse(line);
+          if (event.type === "error") throw new Error(event.detail);
+          if (event.type === "complete") data = event;
+          if (event.type === "progress") {
+            $("pdf-progress").max = event.pages;
+            $("pdf-progress").value = event.completed;
+            const method = event.method === "ocr" ? "OCR local" : "extração de texto";
+            $("pdf-status").textContent = `${event.completed}/${event.pages} página(s) concluída(s) · ${method}`;
+          }
+        }
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            pending += decoder.decode(value, { stream: !done });
+            const lines = pending.split("\n");
+            pending = lines.pop();
+            for (const line of lines) receive(line);
+            if (done) { receive(pending); break; }
+          }
+        } finally {
+          try { await reader.cancel(); }
+          finally { reader.releaseLock(); }
+        }
+        if (importController.signal.aborted) throw new DOMException("Cancelado", "AbortError");
+        if (!data) throw new Error("Extração interrompida; nenhum texto parcial foi importado.");
+        $("text").value = data.text;
+        updateTextCount();
+        pdfSource = data.conservative_pii === true;
+        // O dicionário e a allow-list do exemplo não pertencem ao novo documento.
+        $("terms").value = "";
+        $("allow").value = "";
+        $("question").value = "Resuma os fatos e os principais pontos do documento.";
+        const ocrPages = data.page_info.filter((page) => page.method === "ocr").length;
+        const emptyPages = data.page_info.filter((page) => page.method === "empty").length;
+        $("pdf-status").textContent = `${data.pages} página(s), ${ocrPages} com texto via OCR, ${emptyPages} sem texto reconhecido, ${data.text.length} caracteres. Proteção conservadora de CPF/CNPJ ativada. Revise ordem e completude; anexos e anotações não são analisados. ${data.warnings.join(" ")}`;
+        setStatus(data.text.trim() ? "Texto importado. Revise o conteúdo e preencha o dicionário antes de sanitizar e perguntar." : "Importação concluída, mas nenhuma página produziu texto. Confira as páginas e os avisos antes de perguntar.");
+      } catch (error) {
+        $("pdf-status").textContent = "Importação não concluída.";
+        setStatus(error.name === "AbortError" ? "Importação cancelada. Nenhum texto parcial foi importado." : error.message || "Falha ao importar o PDF.", true);
+      } finally {
+        importController = null;
+        $("cancel-pdf").hidden = true;
+        $("pdf-progress").hidden = true;
+        $("pdf").value = "";
+        setBusy(false);
+      }
+    }
     async function ask() {
-      $("ask").disabled = true;
+      if (!$("text").value.trim()) {
+        setStatus("Importe um PDF ou preencha o texto do caso antes de perguntar.", true);
+        return;
+      }
+      setBusy(true);
       setStatus("Sanitizando e consultando o modelo…");
       try {
         const response = await fetch("/ask", {
@@ -374,6 +511,7 @@
             question: $("question").value,
             case_terms: readTerms(),
             allow_terms: readLines("allow"),
+            conservative_pii: pdfSource,
           }),
         });
         const data = await response.json();
@@ -399,7 +537,7 @@
       } catch (error) {
         setStatus("Falha de rede ao falar com o gateway.", true);
       } finally {
-        $("ask").disabled = false;
+        setBusy(false);
       }
     }
     async function resetStores() {
@@ -408,10 +546,55 @@
       setStatus("Stores limpos.");
     }
     $("ask").addEventListener("click", ask);
+    $("pdf").addEventListener("change", () => importPdf());
+    $("text").addEventListener("input", updateTextCount);
+    $("load-example").addEventListener("click", async () => {
+      if ($("text").value.trim() && !confirm("Substituir o texto e as regras atuais pelo exemplo fictício?")) return;
+      setBusy(true);
+      try { await loadSample(); }
+      catch (_) { setStatus("Não foi possível carregar o exemplo.", true); }
+      finally { setBusy(false); }
+    });
+    for (const event of ["dragenter", "dragover"]) $("dropzone").addEventListener(event, (e) => { e.preventDefault(); if (!$("pdf").disabled) $("dropzone").classList.add("dragging"); });
+    $("dropzone").addEventListener("dragleave", () => $("dropzone").classList.remove("dragging"));
+    $("dropzone").addEventListener("drop", (event) => {
+      event.preventDefault();
+      $("dropzone").classList.remove("dragging");
+      if (!$("pdf").disabled && event.dataTransfer.files.length) importPdf(event.dataTransfer.files[0]);
+    });
+    $("configure").addEventListener("click", () => {
+      $("ocr-backend").value = ocrChoice.backend;
+      $("ocr-device").value = ocrChoice.device;
+      renderBackendDetail();
+      $("settings-status").textContent = "";
+      $("settings-dialog").showModal();
+    });
+    $("close-settings").addEventListener("click", () => $("settings-dialog").close());
+    document.querySelectorAll(".sidebar nav a").forEach((link) => link.addEventListener("click", () => {
+      document.querySelectorAll(".sidebar nav a").forEach((item) => item.classList.toggle("nav-active", item === link));
+      if (link.hash === "#inspect") $("inspect").open = true;
+    }));
+    $("ocr-backend").addEventListener("change", renderBackendDetail);
+    $("refresh-backends").addEventListener("click", refreshBackends);
+    $("settings-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const backend = ocrCatalog.find((item) => item.id === $("ocr-backend").value);
+      if (!backend) { $("settings-status").textContent = "Atualize a disponibilidade antes de salvar."; return; }
+      ocrChoice = { backend: backend.id, device: $("ocr-device").value };
+      try { localStorage.setItem("pii-gateway.ocr", JSON.stringify(ocrChoice)); }
+      catch (_) { /* Continua válida nesta aba, sem persistir texto ou segredos. */ }
+      updateEngineLabel();
+      $("settings-dialog").close();
+      setStatus(backend.ready ? "Motor selecionado para a próxima importação. O texto atual não foi reprocessado." : "Escolha salva. Prepare as dependências/modelos antes de usar OCR com este motor.");
+    });
+    $("cancel-pdf").addEventListener("click", () => importController?.abort());
     $("reset").addEventListener("click", resetStores);
-    loadSample().then(() => {
+    Promise.all([loadSample(), loadOcrOptions(true)]).then(() => {
+      $("pdf").disabled = false;
       if (new URLSearchParams(location.search).has("autorun")) ask();
-    }).catch(() => setStatus("Não foi possível carregar o exemplo.", true));
+    }).catch(() => {
+      setStatus("Não foi possível preparar a demo. Atualize a página ou consulte Configurar.", true);
+    });
   </script>
 </body>
 </html>

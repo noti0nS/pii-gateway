@@ -10,12 +10,18 @@ dependencies = [
     "httpx>=0.27",
     "openai>=1.50",
     "pydantic>=2.9",
+    "pypdf>=6.0",
+    "pypdfium2>=4.30",
+    "pillow>=11",
     "sqlalchemy>=2.0",
     "uvicorn>=0.32",
 ]
 
 [project.optional-dependencies]
-ner = ["gliner>=0.2.16"]
+ner = ["gliner>=0.2.16", "protobuf>=5"]
+ocr-rapid = ["rapidocr>=3.4", "onnxruntime>=1.20"]
+ocr-paddle = ["paddleocr>=3.4"]
+ocr-vlm = ["torch>=2.5", "transformers>=5", "docling-core>=2"]
 
 [dependency-groups]
 dev = ["pytest>=8.3"]
